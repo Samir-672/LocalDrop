@@ -1,0 +1,46 @@
+# Gradle and Kotlin build state
+.gradle/
+.kotlin/
+build/
+**/build/
+out/
+
+# Android Studio and local SDK configuration
+.idea/
+.vscode/
+*.iml
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Generated Android packages
+*.apk
+*.aab
+*.ap_
+
+# Local release-signing credentials
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.bks
+**/signing.properties
+**/keystore.properties
+**/credentials.properties
+**/secrets.properties
+*.credentials
+*.secret
+*.p8
+*.pk8
+*.asc
+*.gpg
+*.pgp
+.env
+.env.*
+
+# Operating-system files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f3f8f4">
+  <title>LocalDrop</title>
+  <style>
+    :root{
+      color-scheme:light;
+      --primary:#2e7d32;--primary-dark:#1b5e20;--outline-ink:#246b2a;
+      --bg:#f3f8f4;--surface:#fff;--surface-raised:#fff;--text:#172318;
+      --muted:#58685b;--border:#d6e1d8;--focus:#00695c;
+      --success:#246b2a;--warning:#805b00;--error:#b3261e;
+      --disabled-bg:#e2e8e3;--disabled-text:#59645b;--drop-bg:#e9f4eb;
+      --shadow:0 8px 26px #18351d0d;
+    }
+    :root[data-theme=dark]{
+      color-scheme:dark;
+      --primary:#2e7d32;--primary-dark:#1b5e20;--outline-ink:#81c784;
+      --bg:#111713;--surface:#1b241d;--surface-raised:#202b22;--text:#edf5ee;
+      --muted:#b3c0b5;--border:#38453a;--focus:#80cbc4;
+      --success:#a5d6a7;--warning:#ffd180;--error:#ffb4ab;
+      --disabled-bg:#354137;--disabled-text:#c0c9c1;--drop-bg:#26382a;
+      --shadow:0 8px 26px #0003;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
+    button,input,textarea,select{font:inherit}
+    .wrap{width:min(100%,980px);margin:0 auto;padding:18px 22px}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:20px;padding-bottom:14px}
+    .brand{display:flex;align-items:center;gap:11px;min-width:0;font-size:22px;font-weight:800;letter-spacing:-.025em}
+    .logo{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:13px;background:var(--primary);color:#fff}
+    .top-actions,.actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+    .theme-control{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;font-weight:650}
+    button,select,.browse-button{min-height:44px;border-radius:11px;font-weight:700}
+    button,.browse-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 15px;border:1px solid transparent;background:var(--primary);color:#fff;cursor:pointer;text-decoration:none;transition:background-color .16s ease,color .16s ease,border-color .16s ease,box-shadow .16s ease,transform .12s ease}
+    button.primary{background:var(--primary);color:#fff}
+    button.secondary,.browse-button.secondary{border-color:var(--border);background:var(--surface-raised);color:var(--outline-ink)}
+    button.danger{background:#b3261e;color:#fff}
+    button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,.browse-button:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+    button:active:not(:disabled),.browse-button:active{transform:translateY(1px) scale(.985)}
+    button:disabled,.browse-button[aria-disabled=true]{border-color:transparent;background:var(--disabled-bg);color:var(--disabled-text);box-shadow:none;cursor:not-allowed}
+    select{padding:8px 32px 8px 11px;border:1px solid var(--border);background:var(--surface);color:var(--text)}
+    @media(hover:hover){
+      button:hover:not(:disabled),.browse-button:hover{box-shadow:0 3px 12px #0002;filter:brightness(1.06)}
+      button.secondary:hover:not(:disabled),.browse-button.secondary:hover{background:var(--drop-bg);filter:none}
+    }
+    .card{margin:0 0 15px;padding:20px;border:1px solid var(--border);border-radius:17px;background:var(--surface);box-shadow:var(--shadow)}
+    .login-card{width:min(100%,440px);margin:8vh auto;text-align:center;padding:26px}
+    .login-brand{justify-content:center}
+    .login-title{margin:20px 0 4px;font-size:22px}
+    .login-copy{margin:0 0 20px;color:var(--muted)}
+    h2,h3{margin:0 0 13px;letter-spacing:-.01em}
+    h2{font-size:18px}h3{font-size:17px}
+    .section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .section-heading h2{margin-bottom:0}
+    .section-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px}
+    #clearAllButton{min-height:40px;padding:7px 12px;font-size:13px}
+    #clearAllButton svg{width:16px;height:16px;flex:none}
+    .confirm-dialog{width:min(440px,calc(100vw - 32px));padding:22px;border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text);box-shadow:0 12px 40px #0004}
+    .confirm-dialog::backdrop{background:#0007}
+    .confirm-dialog h2{margin:0 0 8px}
+    .confirm-dialog p{margin:0;color:var(--muted)}
+    .confirm-dialog .actions{justify-content:flex-end;margin-top:22px}
+    input,textarea{width:100%;border:1px solid var(--border);border-radius:11px;padding:12px 13px;background:var(--surface-raised);color:var(--text)}
+    input::placeholder,textarea::placeholder{color:var(--muted);opacity:.85}
+    textarea{min-height:116px;resize:vertical;line-height:1.55}
+    .field-help,.meta{color:var(--muted);font-size:13px}
+    .field-help{margin:8px 0 0}
+    .status{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:14px;font-weight:650}
+    .dot{width:9px;height:9px;flex:none;border-radius:50%;background:var(--success);box-shadow:0 0 0 3px color-mix(in srgb,var(--success) 16%,transparent)}
+    .status-message{min-height:1.3em;margin:8px 0 0;color:var(--muted);font-size:13px}
+    .status-message.error,.error{color:var(--error)}
+    .success{color:var(--success)}
+    .item-list{display:flex;flex-direction:column}
+    .item{display:flex;align-items:center;justify-content:space-between;gap:16px;min-width:0;padding:14px 0;border-top:1px solid var(--border)}
+    .item:first-child{border-top:0}
+    .item-main{display:flex;align-items:flex-start;gap:12px;min-width:0;flex:1}
+    .type-badge{flex:none;min-width:62px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--drop-bg);color:var(--outline-ink);font-size:11px;font-weight:750;text-align:center}
+    .item-details{min-width:0;flex:1}
+    .item-title{overflow:hidden;color:var(--text);font-weight:680;text-overflow:ellipsis;white-space:nowrap}
+    .item-preview{display:-webkit-box;overflow:hidden;max-width:640px;color:var(--text);overflow-wrap:anywhere;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:pre-wrap}
+    .item-meta{margin-top:3px;color:var(--muted);font-size:12px}
+    .item-actions{display:flex;flex:none;gap:8px}
+    .item-actions button{min-height:40px;padding:8px 12px}
+    .empty-state{margin:0;padding:26px 8px;color:var(--muted);text-align:center}
+    .upload-zone{display:flex;flex-direction:column;align-items:center;gap:9px;padding:24px 16px;border:1.5px dashed var(--border);border-radius:14px;background:color-mix(in srgb,var(--surface) 72%,var(--bg));text-align:center;transition:border-color .15s ease,background-color .15s ease,transform .15s ease}
+    .upload-zone.dragover{transform:scale(1.005);border-color:var(--primary);background:var(--drop-bg)}
+    .cloud-icon{width:40px;height:40px;color:var(--outline-ink)}
+    .upload-title{font-weight:720}
+    .upload-subtitle{color:var(--muted);font-size:13px}
+    .browse-button{position:relative}
+    .visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+    .selected-files{display:grid;gap:7px;margin:12px 0 0;padding:0;list-style:none}
+    .selected-file{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:var(--surface-raised)}
+    .selected-file-details{min-width:0}
+    .selected-file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:620}
+    .remove-file{width:40px;min-height:40px;padding:0;font-size:20px}
+    .upload-actions{display:flex;justify-content:flex-end;margin-top:12px}
+    .transfers{display:grid;gap:10px;margin-top:14px}
+    .transfer{padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--surface-raised)}
+    .transfer-head{display:flex;justify-content:space-between;gap:10px;min-width:0}
+    .transfer-name{overflow:hidden;min-width:0;text-overflow:ellipsis;white-space:nowrap;font-weight:650}
+    .transfer-size{flex:none;color:var(--muted);font-size:12px}
+    .transfer-progress{display:block;width:100%;height:8px;margin:9px 0 5px;accent-color:var(--primary)}
+    .transfer-foot{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px}
+    .transfer[data-state=success] .transfer-state{color:var(--success)}
+    .transfer[data-state=error] .transfer-state{color:var(--error)}
+    .spinner{display:inline-block;width:15px;height:15px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #toast{position:fixed;z-index:5;right:18px;bottom:18px;max-width:min(90vw,540px);padding:11px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface-raised);color:var(--text);box-shadow:0 5px 20px #0003}
+    #toast.error{border-color:var(--error);color:var(--error)}
+    .hidden{display:none!important}
+    @media(max-width:650px){
+      .wrap{padding-right:14px;padding-left:14px}
+      .top{align-items:flex-start;padding-top:14px}
+      .brand{font-size:19px}
+      .logo{width:36px;height:36px}
+      .top-actions{justify-content:flex-end;gap:7px}
+      .theme-control{gap:5px}
+      .theme-control span{display:none}
+      .theme-control select{max-width:100px}
+      .top-actions button{padding:8px 10px}
+      .card{padding:16px;border-radius:15px}
+      .login-card{margin:7vh auto;padding:22px 18px}
+      .item{align-items:flex-start;flex-direction:column}
+      .item-actions{width:100%;justify-content:flex-end}
+      .item-actions button{flex:1}
+    }
+    @media(max-width:390px){.top{flex-direction:column;align-items:stretch;gap:8px}.top-actions{width:100%;justify-content:space-between;gap:5px}.status{font-size:12px}.theme-control select{max-width:88px}.top-actions button{font-size:12px}.section-heading{align-items:flex-start}.section-actions{gap:6px}.section-actions .meta{font-size:12px}#clearAllButton{padding:7px 9px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
+</head>
+<body>
+<header class="top wrap">
+  <div class="brand"><div class="logo" aria-hidden="true">↓</div><span>LocalDrop</span></div>
+  <div class="top-actions">
+    <span id="connectionStatus" class="status hidden" role="status"><span class="dot" aria-hidden="true"></span>Connected</span>
+    <label class="theme-control"><span>Theme</span><select id="themeSelect" aria-label="Color theme"><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
+    <button id="logout" class="secondary hidden" type="button">Disconnect</button>
+  </div>
+</header>
+<main id="login" class="wrap">
+  <section class="card login-card">
+    <div class="brand login-brand"><div class="logo" aria-hidden="true">↓</div><span>LocalDrop</span></div>
+    <h1 class="login-title">Connect to your phone</h1>
+    <p class="login-copy">Enter the access code shown in LocalDrop on your phone.</p>
+    <form id="loginForm">
+      <input id="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Six-digit access code" aria-label="Six-digit access code" required>
+      <p id="loginError" class="status-message error" role="alert" aria-live="polite"></p>
+      <button id="loginButton" class="primary" type="submit" style="width:100%"><span id="loginButtonLabel">Connect</span><span id="loginSpinner" class="spinner hidden" aria-hidden="true"></span></button>
+    </form>
+  </section>
+</main>
+<main id="app" class="wrap hidden">
+  <section class="card">
+    <h2>Share text</h2>
+    <textarea id="text" enterkeyhint="send" placeholder="Type or paste text here…" aria-label="Text to share"></textarea>
+    <div class="upload-actions"><button id="sendText" class="primary" type="button">Send to phone</button></div>
+    <p id="sendStatus" class="status-message" role="status" aria-live="polite"></p>
+  </section>
+  <section class="card">
+    <h2>Upload files</h2>
+    <div id="uploadZone" class="upload-zone">
+      <svg class="cloud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 18.5H6a4 4 0 0 1-.7-7.94A6.5 6.5 0 0 1 17.8 9a4.75 4.75 0 0 1 .2 9.5h-1.5M12 15V22m0-7 3 3m-3-3-3 3"/>
+      </svg>
+      <div class="upload-title">Drag and drop files here</div>
+      <div class="upload-subtitle">or browse your device</div>
+      <input id="files" class="visually-hidden" type="file" multiple aria-label="Choose files to upload">
+      <button id="browseFiles" class="secondary" type="button">Browse files</button>
+    </div>
+    <ul id="selectedFiles" class="selected-files" aria-label="Selected files"></ul>
+    <div id="uploadActions" class="upload-actions hidden"><button id="uploadButton" class="primary" type="button" disabled>Upload selected files</button></div>
+    <p id="uploadStatus" class="status-message" role="status" aria-live="polite"></p>
+    <div id="transfers" class="transfers" aria-live="polite"></div>
+  </section>
+  <section class="card">
+    <div class="section-heading">
+      <h2>Shared items</h2>
+      <div class="section-actions">
+        <span id="itemsCount" class="meta"></span>
+        <button id="clearAllButton" class="danger hidden" type="button" aria-label="Clear all shared items">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg>
+          <span>Clear All</span>
+        </button>
+      </div>
+    </div>
+    <p id="itemsStatus" class="status-message" role="status" aria-live="polite"></p>
+    <div id="items" class="item-list"></div>
+  </section>
+</main>
+<dialog id="clearAllDialog" class="confirm-dialog" aria-labelledby="clearAllTitle" aria-describedby="clearAllMessage">
+  <h2 id="clearAllTitle">Clear All Shared Items?</h2>
+  <p id="clearAllMessage"></p>
+  <div class="actions">
+    <button id="cancelClearAll" class="secondary" type="button">Cancel</button>
+    <button id="confirmClearAll" class="danger" type="button">Delete All</button>
+  </div>
+</dialog>
+<div id="toast" class="hidden" role="status" aria-live="polite"></div>
+<script>
+const POLL_INTERVAL_MS=1500;
+const VALID_THEMES=['light','dark','system'];
+let token=sessionStorage.getItem('localdrop-token')||'';
+let theme=localStorage.getItem('localdrop-theme');
+if(!VALID_THEMES.includes(theme))theme='system';
+let pollTimer=null;
+let itemsRequest=null;
+let itemsGeneration=0;
+let textSending=false;
+let fileUploading=false;
+let clearingItems=false;
+let sharedItems=[];
+let selectedFiles=[];
+const colorScheme=matchMedia('(prefers-color-scheme: dark)');
+const byId=id=>document.getElementById(id);
+
+class ApiError extends Error{
+  constructor(status,message){super(message);this.status=status}
+}
+function applyTheme(){
+  const effective=theme==='system'?(colorScheme.matches?'dark':'light'):theme;
+  document.documentElement.dataset.theme=effective;
+  byId('themeSelect').value=theme;
+  document.querySelector('meta[name="theme-color"]').content=effective==='dark'?'#111713':'#f3f8f4';
+}
+function setTheme(value){
+  if(!VALID_THEMES.includes(value))return;
+  theme=value;
+  localStorage.setItem('localdrop-theme',theme);
+  applyTheme();
+}
+function showToast(message,isError=false){
+  const toast=byId('toast');
+  toast.textContent=message;
+  toast.classList.toggle('error',isError);
+  toast.classList.remove('hidden');
+  clearTimeout(showToast.timer);
+  showToast.timer=setTimeout(()=>toast.classList.add('hidden'),3500);
+}
+function statusMessage(id,message,isError=false){
+  const element=byId(id);
+  element.textContent=message;
+  element.classList.toggle('error',isError);
+}
+function explainStatus(status,serverMessage){
+  if(serverMessage)return serverMessage;
+  return ({400:'The request was invalid.',401:'Your session expired. Connect again.',403:'This action is not allowed.',404:'The shared item no longer exists.',413:'The request or file is too large.',500:'The phone could not complete the request.'})[status]||`Request failed (${status}).`;
+}
+async function request(path,options={},authenticated=true,timeoutMs=15000){
+  const controller=new AbortController();
+  const timeout=timeoutMs>0?setTimeout(()=>controller.abort(),timeoutMs):null;
+  const headers=new Headers(options.headers||{});
+  headers.set('Accept','application/json');
+  if(authenticated&&token)headers.set('Authorization','Bearer '+token);
+  if(typeof options.body==='string'&&!headers.has('Content-Type'))headers.set('Content-Type','application/json; charset=UTF-8');
+  try{
+    const response=await fetch(path,{...options,headers,signal:controller.signal});
+    if(!response.ok){
+      const payload=await response.clone().json().catch(()=>({}));
+      throw new ApiError(response.status,explainStatus(response.status,payload.error));
+    }
+    return response;
+  }catch(error){
+    if(error instanceof ApiError)throw error;
+    if(error.name==='AbortError')throw new Error('LocalDrop did not respond. Check that the phone server is running.');
+    if(error instanceof TypeError)throw new Error('Could not reach LocalDrop. Check the URL and Wi-Fi connection.');
+    throw error;
+  }finally{if(timeout!==null)clearTimeout(timeout)}
+}
+async function requestJson(path,options={},authenticated=true){
+  const response=await request(path,options,authenticated);
+  return response.status===204?null:response.json();
+}
+function setConnected(connected){
+  byId('connectionStatus').classList.toggle('hidden',!connected);
+  byId('logout').classList.toggle('hidden',!connected);
+}
+async function showApp(){
+  byId('login').classList.add('hidden');
+  byId('app').classList.remove('hidden');
+  setConnected(true);
+  await refreshItems();
+  startPolling();
+}
+function stopPolling(){
+  if(pollTimer!==null){clearInterval(pollTimer);pollTimer=null}
+}
+function startPolling(){
+  stopPolling();
+  if(document.visibilityState!=='visible'||byId('app').classList.contains('hidden'))return;
+  pollTimer=setInterval(()=>{if(document.visibilityState==='visible')refreshItems()},POLL_INTERVAL_MS);
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden')stopPolling();
+  else if(!byId('app').classList.contains('hidden')){refreshItems();startPolling()}
+});
+window.addEventListener('pagehide',stopPolling);
+function itemKind(item){
+  if(item.type==='text')return 'Text';
+  const mime=(item.mimeType||'').toLowerCase();
+  if(mime.startsWith('image/'))return 'Image';
+  if(mime.includes('pdf')||mime.includes('document')||mime.includes('word')||mime.includes('spreadsheet'))return 'Document';
+  return 'File';
+}
+function renderItems(items){
+  sharedItems=items;
+  const clearButton=byId('clearAllButton');
+  clearButton.classList.toggle('hidden',items.length===0);
+  clearButton.disabled=clearingItems;
+  const box=byId('items');
+  const fragment=document.createDocumentFragment();
+  byId('itemsCount').textContent=items.length?`${items.length} item${items.length===1?'':'s'}`:'';
+  if(items.length===0){
+    const empty=document.createElement('p');
+    empty.className='empty-state';
+    empty.textContent='Nothing shared yet. Add text or files to get started.';
+    fragment.append(empty);
+  }
+  for(const item of items){
+    const row=document.createElement('div');
+    row.className='item';
+    const main=document.createElement('div');
+    main.className='item-main';
+    const badge=document.createElement('span');
+    badge.className='type-badge';
+    badge.textContent=itemKind(item);
+    const details=document.createElement('div');
+    details.className='item-details';
+    const title=document.createElement('div');
+    const isText=item.type==='text';
+    title.className=isText?'item-preview':'item-title';
+    title.textContent=isText?previewText(item.text||''):item.name;
+    title.title=isText?(item.text||''):(item.name||'');
+    const meta=document.createElement('div');
+    meta.className='item-meta';
+    meta.textContent=isText?'Text · '+new Date(item.createdAt).toLocaleString():formatSize(item.size)+' · '+(item.mimeType||'File');
+    details.append(title,meta);
+    main.append(badge,details);
+    const actions=document.createElement('div');
+    actions.className='item-actions';
+    if(isText){
+      const copy=document.createElement('button');
+      copy.className='secondary';
+      copy.textContent='Copy';
+      copy.setAttribute('aria-label','Copy shared text');
+      copy.onclick=()=>copyText(item.text||'');
+      actions.append(copy);
+    }else{
+      const download=document.createElement('button');
+      download.className='secondary';
+      download.textContent='Download';
+      download.onclick=()=>downloadFile(item,download);
+      actions.append(download);
+    }
+    const remove=document.createElement('button');
+    remove.className='danger';
+    remove.textContent='Delete';
+    remove.onclick=()=>deleteItem(item,remove);
+    actions.append(remove);
+    row.append(main,actions);
+    fragment.append(row);
+  }
+  box.replaceChildren(fragment);
+}
+function previewText(text){
+  const compact=text.replace(/\s+/g,' ').trim();
+  return compact.length<=150?compact:compact.slice(0,150).trimEnd()+'…';
+}
+async function refreshItems(){
+  if(itemsRequest)return itemsRequest;
+  const generation=itemsGeneration;
+  itemsRequest=(async()=>{
+    try{
+      const items=await requestJson('/api/items');
+      if(!Array.isArray(items))throw new Error('The server returned an invalid shared-items list.');
+      if(generation!==itemsGeneration)return false;
+      renderItems(items);
+      statusMessage('itemsStatus','');
+      return true;
+    }catch(error){
+      if(generation!==itemsGeneration)return false;
+      statusMessage('itemsStatus','Could not refresh shared items. Showing the last loaded list. '+error.message,true);
+      return false;
+    }finally{itemsRequest=null}
+  })();
+  return itemsRequest;
+}
+async function sendText(){
+  if(textSending)return;
+  const input=byId('text');
+  const text=input.value;
+  if(!text.trim()){statusMessage('sendStatus','Enter text before sending.',true);return}
+  textSending=true;
+  const button=byId('sendText');
+  button.disabled=true;
+  button.innerHTML='<span class="spinner" aria-hidden="true"></span> Sending…';
+  statusMessage('sendStatus','');
+  try{
+    await request('/api/text',{method:'POST',body:JSON.stringify({text})});
+    if(input.value===text)input.value='';
+    statusMessage('sendStatus','Text shared.');
+    await refreshItems();
+  }catch(error){statusMessage('sendStatus',error.message,true)}
+  finally{textSending=false;button.disabled=false;button.textContent='Send to phone'}
+}
+async function copyText(text){
+  try{
+    if(navigator.clipboard&&typeof navigator.clipboard.writeText==='function'){
+      try{await navigator.clipboard.writeText(text);showToast('Text copied.');return}
+      catch(_){if(copyWithTextarea(text)){showToast('Text copied.');return}}
+    }else if(copyWithTextarea(text)){showToast('Text copied.');return}
+    throw new Error('Copy was blocked. Select and copy the text manually.');
+  }catch(error){showToast(error.message||'Could not copy text.',true)}
+}
+function copyWithTextarea(text){
+  const textarea=document.createElement('textarea');
+  textarea.value=text;
+  textarea.setAttribute('readonly','');
+  textarea.style.position='fixed';
+  textarea.style.opacity='0';
+  document.body.append(textarea);
+  textarea.select();
+  textarea.setSelectionRange(0,textarea.value.length);
+  let copied=false;
+  try{copied=document.execCommand('copy')}finally{textarea.remove()}
+  return copied;
+}
+function filenameFromResponse(header,fallback){
+  const encoded=header&&header.match(/filename\*=UTF-8''([^;]+)/i);
+  if(encoded){try{return decodeURIComponent(encoded[1])}catch(_){return encoded[1]}}
+  const plain=header&&header.match(/filename=\"?([^\";]+)\"?/i);
+  return plain?plain[1]:fallback;
+}
+function createTransferRow(name,size,state='Queued'){
+  const row=document.createElement('div');
+  row.className='transfer';
+  row.dataset.state='active';
+  const head=document.createElement('div');
+  head.className='transfer-head';
+  const title=document.createElement('div');
+  title.className='transfer-name';
+  title.textContent=name;
+  title.title=name;
+  const sizeLabel=document.createElement('span');
+  sizeLabel.className='transfer-size';
+  sizeLabel.textContent=formatSize(size);
+  const progress=document.createElement('progress');
+  progress.className='transfer-progress';
+  progress.max=100;
+  progress.setAttribute('aria-label',`${name} transfer progress`);
+  const foot=document.createElement('div');
+  foot.className='transfer-foot';
+  const stateLabel=document.createElement('span');
+  stateLabel.className='transfer-state';
+  stateLabel.textContent=state;
+  const detail=document.createElement('span');
+  detail.textContent='Waiting';
+  head.append(title,sizeLabel);
+  foot.append(stateLabel,detail);
+  row.append(head,progress,foot);
+  byId('transfers').prepend(row);
+  return {row,progress,stateLabel,detail,start:0,size};
+}
+function updateTransfer(transfer,loaded,total,start){
+  if(!transfer.start)transfer.start=start||Date.now();
+  const elapsed=Math.max((Date.now()-transfer.start)/1000,.1);
+  const speed=loaded/elapsed;
+  if(total>0){
+    transfer.progress.value=Math.min(99,Math.floor(loaded/total*100));
+    const remaining=speed>0?(total-loaded)/speed:0;
+    transfer.detail.textContent=`${formatSize(loaded)} of ${formatSize(total)} · ${formatSize(speed)}/s${remaining>0?' · '+Math.ceil(remaining)+'s left':''}`;
+  }else{
+    transfer.progress.removeAttribute('value');
+    transfer.detail.textContent=`${formatSize(loaded)} received · ${formatSize(speed)}/s`;
+  }
+}
+function finishTransfer(transfer,success,message){
+  transfer.row.dataset.state=success?'success':'error';
+  if(success){transfer.progress.value=100;transfer.detail.textContent=`${formatSize(transfer.size)} transferred`}
+  else transfer.detail.textContent=message;
+  transfer.stateLabel.textContent=success?'Succeeded':'Failed';
+}
+async function downloadFile(item,button){
+  if(button.disabled)return;
+  button.disabled=true;
+  button.innerHTML='<span class="spinner" aria-hidden="true"></span> Downloading';
+  const transfer=createTransferRow(item.name||'download',item.size||0,'Downloading');
+  let writable=null;
+  try{
+    const response=await request('/api/files/'+encodeURIComponent(item.id),{},true,0);
+    const filename=filenameFromResponse(response.headers.get('Content-Disposition'),item.name||'download');
+    const contentLength=Number(response.headers.get('Content-Length'))||0;
+    const picker=window.isSecureContext&&typeof window.showSaveFilePicker==='function'&&response.body;
+    if(picker){
+      const handle=await window.showSaveFilePicker({suggestedName:filename});
+      writable=await handle.createWritable();
+    }
+    let received=0;
+    const chunks=[];
+    if(response.body){
+      const reader=response.body.getReader();
+      while(true){
+        const {value,done}=await reader.read();
+        if(done)break;
+        received+=value.byteLength;
+        if(writable)await writable.write(value);
+        else chunks.push(value);
+        updateTransfer(transfer,received,contentLength,transfer.start||Date.now());
+      }
+    }else{
+      const blob=await response.blob();
+      received=blob.size;
+      chunks.push(blob);
+      updateTransfer(transfer,received,contentLength||received,Date.now());
+    }
+    if(writable)await writable.close();
+    else{
+      const blob=new Blob(chunks,{type:item.mimeType||'application/octet-stream'});
+      const objectUrl=URL.createObjectURL(blob);
+      const link=document.createElement('a');
+      link.href=objectUrl;
+      link.download=filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(()=>URL.revokeObjectURL(objectUrl),1000);
+    }
+    finishTransfer(transfer,true,'');
+    showToast('Download complete.');
+  }catch(error){
+    if(writable)await writable.abort().catch(()=>{});
+    if(error.name==='AbortError'){
+      transfer.row.dataset.state='error';
+      transfer.stateLabel.textContent='Canceled';
+      transfer.detail.textContent='Download canceled';
+    }else{
+      finishTransfer(transfer,false,error.message||'Could not download file.');
+      showToast(error.message||'Could not download file.',true);
+    }
+  }finally{
+    button.disabled=false;
+    button.textContent='Download';
+  }
+}
+async function deleteItem(item,button){
+  if(button.disabled||!confirm('Delete this shared item?'))return;
+  button.disabled=true;
+  try{
+    await request('/api/items/'+encodeURIComponent(item.id),{method:'DELETE'});
+    await refreshItems();
+    showToast('Item deleted.');
+  }catch(error){
+    if(error instanceof ApiError&&error.status===404){
+      const refreshed=await refreshItems();
+      showToast(refreshed?'This item was already deleted.':'The item is gone, but the list could not refresh.',!refreshed);
+    }else showToast(error.message||'Could not delete item.',true);
+  }finally{button.disabled=false}
+}
+function openClearAllDialog(){
+  if(clearingItems||sharedItems.length===0)return;
+  byId('clearAllMessage').textContent=`Are you sure you want to permanently delete all ${sharedItems.length} shared item${sharedItems.length===1?'':'s'}?`;
+  byId('clearAllDialog').showModal();
+}
+async function clearAllSharedItems(){
+  if(clearingItems||sharedItems.length===0)return;
+  clearingItems=true;
+  const button=byId('clearAllButton');
+  const originalContent=button.innerHTML;
+  const confirmButton=byId('confirmClearAll');
+  button.disabled=true;
+  button.innerHTML='<span class="spinner" aria-hidden="true"></span> Clearing…';
+  confirmButton.disabled=true;
+  confirmButton.textContent='Deleting…';
+  try{
+    const result=await requestJson('/api/items',{method:'DELETE'});
+    if(!result||result.ok!==true||!Number.isInteger(result.deletedCount)||result.deletedCount<0){
+      throw new Error('The server did not confirm that shared items were cleared.');
+    }
+    const pendingItemsRequest=itemsRequest;
+    itemsGeneration++;
+    renderItems([]);
+    statusMessage('itemsStatus','');
+    showToast(`${result.deletedCount} shared item${result.deletedCount===1?'':'s'} deleted.`);
+    if(pendingItemsRequest)await pendingItemsRequest;
+    await refreshItems();
+  }catch(error){showToast(error.message||'Could not clear shared items. Please try again.',true)}
+  finally{
+    clearingItems=false;
+    button.innerHTML=originalContent;
+    button.disabled=sharedItems.length===0;
+    confirmButton.disabled=false;
+    confirmButton.textContent='Delete All';
+  }
+}
+function formatSize(size){
+  if(!Number.isFinite(size)||size<0)return '0 B';
+  if(size<1024)return Math.round(size)+' B';
+  if(size<1048576)return (size/1024).toFixed(1)+' KB';
+  if(size<1073741824)return (size/1048576).toFixed(1)+' MB';
+  return (size/1073741824).toFixed(2)+' GB';
+}
+function apiErrorFromXhr(xhr){
+  let message='';
+  try{message=JSON.parse(xhr.responseText).error||''}catch(_){}
+  if(xhr.status)return explainStatus(xhr.status,message);
+  return xhr.statusText||'Upload failed. Check the connection and try again.';
+}
+function renderSelectedFiles(){
+  const list=byId('selectedFiles');
+  const fragment=document.createDocumentFragment();
+  selectedFiles.forEach((file,index)=>{
+    const row=document.createElement('li');
+    row.className='selected-file';
+    const details=document.createElement('div');
+    details.className='selected-file-details';
+    const name=document.createElement('div');
+    name.className='selected-file-name';
+    name.textContent=file.name;
+    name.title=file.name;
+    const size=document.createElement('div');
+    size.className='meta';
+    size.textContent=formatSize(file.size);
+    details.append(name,size);
+    const remove=document.createElement('button');
+    remove.type='button';
+    remove.className='secondary remove-file';
+    remove.textContent='×';
+    remove.setAttribute('aria-label',`Remove ${file.name}`);
+    remove.disabled=fileUploading;
+    remove.onclick=()=>{selectedFiles.splice(index,1);renderSelectedFiles()};
+    row.append(details,remove);
+    fragment.append(row);
+  });
+  list.replaceChildren(fragment);
+  byId('uploadActions').classList.toggle('hidden',selectedFiles.length===0);
+  byId('uploadButton').disabled=selectedFiles.length===0||fileUploading;
+  byId('uploadButton').textContent=fileUploading?'Uploading…':`Upload ${selectedFiles.length?`${selectedFiles.length} selected file${selectedFiles.length===1?'':'s'}`:'selected files'}`;
+}
+function addSelectedFiles(files){
+  if(fileUploading){statusMessage('uploadStatus','Wait for the current upload to finish before adding files.',true);return}
+  for(const file of files){
+    if(!selectedFiles.some(existing=>existing.name===file.name&&existing.size===file.size&&existing.lastModified===file.lastModified))selectedFiles.push(file);
+  }
+  renderSelectedFiles();
+  statusMessage('uploadStatus',selectedFiles.length?`${selectedFiles.length} file${selectedFiles.length===1?'':'s'} ready to upload.`:'');
+}
+function uploadSingleFile(file,transfer){
+  return new Promise((resolve,reject)=>{
+    const form=new FormData();
+    const metadata=btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify({name:file.name,mimeType:file.type}))));
+    form.append('file0',file,'ldmeta1-'+metadata);
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST','/api/upload');
+    xhr.setRequestHeader('Authorization','Bearer '+token);
+    xhr.upload.onprogress=event=>{
+      if(event.lengthComputable)updateTransfer(transfer,event.loaded,event.total,transfer.start||Date.now());
+      else updateTransfer(transfer,event.loaded,0,transfer.start||Date.now());
+    };
+    xhr.onload=()=>xhr.status>=200&&xhr.status<300?resolve():reject(new Error(apiErrorFromXhr(xhr)));
+    xhr.onerror=()=>reject(new Error('Upload interrupted. Check the connection and try again.'));
+    xhr.ontimeout=()=>reject(new Error('Upload timed out. Please try again.'));
+    xhr.send(form);
+  });
+}
+async function uploadSelectedFiles(){
+  if(fileUploading||!selectedFiles.length)return;
+  fileUploading=true;
+  byId('browseFiles').disabled=true;
+  byId('uploadZone').setAttribute('aria-busy','true');
+  renderSelectedFiles();
+  const batch=selectedFiles.slice();
+  const failed=[];
+  let completed=0;
+  for(const file of batch){
+    const transfer=createTransferRow(file.name,file.size,'Queued');
+    transfer.stateLabel.textContent='Queued';
+    transfer.detail.textContent='Waiting';
+    try{
+      transfer.stateLabel.textContent='Uploading';
+      transfer.detail.textContent='Starting upload…';
+      await uploadSingleFile(file,transfer);
+      finishTransfer(transfer,true,'');
+      completed++;
+    }catch(error){
+      finishTransfer(transfer,false,error.message);
+      failed.push(file);
+    }
+  }
+  selectedFiles=failed;
+  fileUploading=false;
+  byId('browseFiles').disabled=false;
+  byId('uploadZone').removeAttribute('aria-busy');
+  byId('files').value='';
+  renderSelectedFiles();
+  if(completed)await refreshItems();
+  statusMessage('uploadStatus',failed.length?`${completed} uploaded; ${failed.length} failed. Remove or retry the failed files.`:`${completed} file${completed===1?'':'s'} uploaded successfully.`,failed.length>0);
+  if(completed)showToast(`${completed} file${completed===1?'':'s'} uploaded.`);
+}
+byId('loginForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const button=byId('loginButton');
+  const label=byId('loginButtonLabel');
+  const spinner=byId('loginSpinner');
+  const error=byId('loginError');
+  if(button.disabled)return;
+  button.disabled=true;
+  label.textContent='Connecting…';
+  spinner.classList.remove('hidden');
+  error.textContent='';
+  try{
+    const result=await requestJson('/api/login',{method:'POST',body:JSON.stringify({code:byId('code').value.trim()})},false);
+    if(typeof result.token!=='string'||!result.token)throw new Error('The server returned an invalid session. Please try again.');
+    token=result.token;
+    sessionStorage.setItem('localdrop-token',token);
+    await showApp();
+  }catch(error){byId('loginError').textContent=error.message||'Unable to connect. Please try again.'}
+  finally{button.disabled=false;label.textContent='Connect';spinner.classList.add('hidden')}
+});
+byId('logout').onclick=async()=>{
+  try{await request('/api/logout',{method:'POST',body:'{}'})}
+  catch(error){showToast('Disconnected locally. '+error.message,true)}
+  stopPolling();
+  token='';
+  sessionStorage.removeItem('localdrop-token');
+  setConnected(false);
+  byId('app').classList.add('hidden');
+  byId('login').classList.remove('hidden');
+  byId('code').value='';
+};
+byId('themeSelect').addEventListener('change',event=>setTheme(event.target.value));
+if(colorScheme.addEventListener)colorScheme.addEventListener('change',()=>{if(theme==='system')applyTheme()});
+else colorScheme.addListener(()=>{if(theme==='system')applyTheme()});
+byId('sendText').onclick=sendText;
+byId('text').addEventListener('keydown',event=>{
+  if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){
+    event.preventDefault();
+    sendText();
+  }
+});
+byId('browseFiles').onclick=()=>byId('files').click();
+byId('files').addEventListener('change',event=>{
+  addSelectedFiles(Array.from(event.target.files||[]));
+  event.target.value='';
+});
+byId('uploadButton').onclick=uploadSelectedFiles;
+byId('clearAllButton').addEventListener('click',openClearAllDialog);
+byId('cancelClearAll').addEventListener('click',()=>byId('clearAllDialog').close());
+byId('confirmClearAll').addEventListener('click',()=>{
+  byId('clearAllDialog').close();
+  clearAllSharedItems();
+});
+const uploadZone=byId('uploadZone');
+uploadZone.addEventListener('dragover',event=>{event.preventDefault();uploadZone.classList.add('dragover')});
+uploadZone.addEventListener('dragleave',event=>{if(!uploadZone.contains(event.relatedTarget))uploadZone.classList.remove('dragover')});
+uploadZone.addEventListener('drop',event=>{
+  event.preventDefault();
+  uploadZone.classList.remove('dragover');
+  addSelectedFiles(Array.from(event.dataTransfer?.files||[]));
+});
+applyTheme();
+renderSelectedFiles();
+(async()=>{
+  if(!token)return;
+  try{await request('/api/items');await showApp()}
+  catch(_){token='';sessionStorage.removeItem('localdrop-token')}
+})();
+</script>
+</body>
+</html>
