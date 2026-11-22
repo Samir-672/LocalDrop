@@ -3,6 +3,7 @@ package com.samir.localdrop
 import android.content.Context
 import com.google.gson.Gson
 import com.samir.localdrop.data.SharedRepository
+import com.samir.localdrop.model.SharedItem
 import com.samir.localdrop.server.LocalDropServer
 import fi.iki.elonen.NanoHTTPD
 import org.junit.After
@@ -11,6 +12,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -19,6 +21,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.RuntimeEnvironment
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -59,12 +62,18 @@ class LocalDropServerApiTest {
         val created = postJson("/api/text", gson.toJson(mapOf("text" to message)), token)
         assertEquals(201, created.status)
         val item = gson.fromJson(created.body, Map::class.java)
+        assertEquals("text", item["type"])
+        assertEquals(message, item["text"])
+        assertEquals(0, (item["size"] as Number).toInt())
+        assertEquals(null, item["relativePath"])
+        assertEquals(null, item["mimeType"])
         val id = item["id"] as String
 
         val listed = request("GET", "/api/items", token)
         assertEquals(200, listed.status)
         val listedItems = gson.fromJson(listed.body, List::class.java).filterIsInstance<Map<*, *>>()
         assertEquals(message, listedItems.single()["text"])
+        assertEquals("text", listedItems.single()["type"])
         assertEquals(message, SharedRepository(context).load().single().text)
         repository.addText("Android-origin text")
         assertTrue(request("GET", "/api/items", token).body.contains("Android-origin text"))
@@ -74,6 +83,31 @@ class LocalDropServerApiTest {
         assertEquals(200, request("GET", "/api/items", token).status)
         server.invalidateSessions()
         assertEquals(401, request("GET", "/api/items", token).status)
+    }
+
+    @Test
+    fun persisted_text_payload_is_normalized_to_a_text_item_without_file_metadata() {
+        val text = "Android shared text"
+        val legacyText = SharedItem(
+            id = "legacy-text",
+            type = "file",
+            name = "Text",
+            text = text,
+            createdAt = System.currentTimeMillis()
+        )
+        File(context.filesDir, "shared-items.json").writeText(gson.toJson(listOf(legacyText)))
+
+        val token = authenticate()
+        val listed = request("GET", "/api/items", token)
+
+        assertEquals(200, listed.status)
+        val item = gson.fromJson(listed.body, List::class.java).single() as Map<*, *>
+        assertEquals("text", item["type"])
+        assertEquals(text, item["text"])
+        assertEquals(0, (item["size"] as Number).toInt())
+        assertEquals(null, item["relativePath"])
+        assertEquals(null, item["mimeType"])
+        assertTrue(File(context.filesDir, "shared-items.json").readText().contains("\"type\":\"text\""))
     }
 
     @Test
@@ -103,6 +137,8 @@ class LocalDropServerApiTest {
         val fileItem = items.firstOrNull { it["name"] == "archive-資料.bin" }
         assertNotNull(uploaded.body, fileItem)
         fileItem!!
+        assertEquals(large.size.toLong(), (fileItem["size"] as Number).toLong())
+        assertEquals("application/octet-stream", fileItem["mimeType"])
         val noteItem = items.firstOrNull { it["name"] == "note.txt" }
         assertNotNull(uploaded.body, noteItem)
         assertEquals("text/plain", noteItem!!["mimeType"])
@@ -127,6 +163,52 @@ class LocalDropServerApiTest {
             digest.digest()
         )
         assertNotNull(fileItem["mimeType"])
+
+        val storedFile = repository.safeFile(fileItem["relativePath"] as String)!!
+        assertTrue(storedFile.delete())
+        val missing = request("GET", "/api/files/$id", token)
+        assertEquals(404, missing.status)
+        assertTrue(missing.body.contains("File not found"))
+    }
+
+    @Test
+    fun empty_upload_is_rejected_without_creating_file_metadata() {
+        val token = authenticate()
+        val boundary = "localdrop-empty-file-boundary"
+        val upload = multipart(
+            boundary,
+            listOf(Triple("file0", "empty.txt", "text/plain" to byteArrayOf()))
+        )
+
+        val response = request(
+            "POST",
+            "/api/upload",
+            token,
+            "multipart/form-data; boundary=$boundary",
+            upload
+        )
+
+        assertEquals(400, response.status)
+        assertTrue(response.body.contains("Missing or empty files"))
+        assertTrue(repository.load().isEmpty())
+        assertTrue(repository.sharedDir.listFiles()!!.isEmpty())
+    }
+
+    @Test
+    fun repository_rejects_missing_or_empty_android_file_sources() {
+        val emptyFile = File(context.cacheDir, "localdrop-empty-source").apply { createNewFile() }
+        val missingFile = File(context.cacheDir, "localdrop-missing-source")
+
+        assertThrows(IOException::class.java) {
+            repository.addFile("empty.txt", emptyFile, "text/plain")
+        }
+        assertThrows(IOException::class.java) {
+            repository.addFile("missing.txt", missingFile, "text/plain")
+        }
+
+        assertTrue(repository.load().isEmpty())
+        assertTrue(repository.sharedDir.listFiles()!!.isEmpty())
+        emptyFile.delete()
     }
 
     @Test

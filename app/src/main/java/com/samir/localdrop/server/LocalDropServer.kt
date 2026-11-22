@@ -102,11 +102,17 @@ class LocalDropServer(
             }
             session.method == Method.GET && uri.startsWith("/api/files/") -> {
                 val id = uri.substringAfterLast("/")
-                val item = repository.load().firstOrNull { it.id == id }
-                if (item == null || item.relativePath == null) jsonResponse(404, mapOf("error" to "File not found"))
-                else {
+                val item = try {
+                    repository.load().firstOrNull { it.id == id }
+                } catch (_: Exception) {
+                    return jsonResponse(500, mapOf("error" to "Could not read shared item"))
+                }
+                if (item == null || item.type != "file" || item.relativePath == null) {
+                    jsonResponse(404, mapOf("error" to "File not found"))
+                } else {
                     val file = repository.safeFile(item.relativePath!!)
                     if (file == null || !file.isFile) jsonResponse(404, mapOf("error" to "File not found"))
+                    else if (file.length() <= 0L) jsonResponse(404, mapOf("error" to "File is empty"))
                     else newFixedLengthResponse(
                         Status.OK,
                         item.mimeType ?: "application/octet-stream",
@@ -131,6 +137,13 @@ class LocalDropServer(
             return jsonResponse(400, mapOf("error" to "Could not read uploaded files"))
         }
         if (files.isEmpty()) return jsonResponse(400, mapOf("error" to "No files uploaded"))
+        if (files.values.any { path ->
+                val file = File(path)
+                !file.isFile || file.length() <= 0L
+            }
+        ) {
+            return jsonResponse(400, mapOf("error" to "Missing or empty files cannot be shared"))
+        }
         return try {
             val uploaded = mutableListOf<com.samir.localdrop.model.SharedItem>()
             for ((fieldName, tempPath) in files) {

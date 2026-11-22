@@ -27,6 +27,7 @@ import com.samir.localdrop.databinding.ActivityMainBinding
 import com.samir.localdrop.databinding.ItemSharedBinding
 import com.samir.localdrop.model.SharedItem
 import java.io.File
+import java.io.IOException
 import java.text.DecimalFormat
 
 class MainActivity : AppCompatActivity() {
@@ -59,14 +60,17 @@ class MainActivity : AppCompatActivity() {
                 val mime = contentResolver.getType(uri)
                 val temp = File(cacheDir, "localdrop-${System.currentTimeMillis()}-${count}")
                 try {
-                    contentResolver.openInputStream(uri)?.use { input ->
+                    val input = contentResolver.openInputStream(uri)
+                        ?: throw IOException("The selected file could not be opened")
+                    input.use {
                         temp.outputStream().use { output -> input.copyTo(output) }
                     }
                     repository.addFile(name, temp, mime)
-                    temp.delete()
                     count++
                 } catch (e: Exception) {
                     runOnUiThread { Toast.makeText(this, "Could not share $name", Toast.LENGTH_SHORT).show() }
+                } finally {
+                    temp.delete()
                 }
             }
             runOnUiThread {

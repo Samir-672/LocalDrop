@@ -24,7 +24,28 @@ class SharedRepository(private val context: Context) {
     fun load(): MutableList<SharedItem> = synchronized(lock) {
         if (!metadataFile.exists()) return mutableListOf()
         val type = object : TypeToken<MutableList<SharedItem>>() {}.type
-        gson.fromJson(metadataFile.readText(Charsets.UTF_8), type) ?: mutableListOf()
+        val loaded: MutableList<SharedItem> =
+            gson.fromJson(metadataFile.readText(Charsets.UTF_8), type) ?: mutableListOf()
+        val normalized = loaded.map { item ->
+            when {
+                item.type == "text" -> item.copy(
+                    name = "Text",
+                    relativePath = null,
+                    mimeType = null,
+                    size = 0
+                )
+                item.type == "file" && item.text != null -> item.copy(
+                    type = "text",
+                    name = "Text",
+                    relativePath = null,
+                    mimeType = null,
+                    size = 0
+                )
+                else -> item
+            }
+        }.toMutableList()
+        if (normalized != loaded) save(normalized)
+        normalized
     }
 
     private fun save(items: List<SharedItem>) {
@@ -57,29 +78,54 @@ class SharedRepository(private val context: Context) {
     }
 
     fun addFile(name: String, source: File, mimeType: String?): SharedItem = synchronized(lock) {
+        if (!source.isFile) throw IOException("The uploaded file is missing")
+        val sourceSize = source.length()
+        if (sourceSize <= 0L) throw IOException("Empty files cannot be shared")
+
         val items = load()
         val safeName = sanitize(name)
         val uniqueName = uniqueName(safeName)
         val target = File(sharedDir, uniqueName)
-        source.copyTo(target, overwrite = false)
-        val item = SharedItem(
-            id = UUID.randomUUID().toString(),
-            type = "file",
-            name = uniqueName,
-            relativePath = uniqueName,
-            mimeType = mimeType ?: "application/octet-stream",
-            size = target.length(),
-            createdAt = System.currentTimeMillis()
-        )
-        items.add(0, item)
-        save(items)
-        item
+        try {
+            source.copyTo(target, overwrite = false)
+            if (!target.isFile || target.length() != sourceSize) {
+                throw IOException("The uploaded file was not stored completely")
+            }
+            val item = SharedItem(
+                id = UUID.randomUUID().toString(),
+                type = "file",
+                name = name.ifBlank { safeName },
+                relativePath = uniqueName,
+                mimeType = mimeType ?: "application/octet-stream",
+                size = target.length(),
+                createdAt = System.currentTimeMillis()
+            )
+            items.add(0, item)
+            try {
+                save(items)
+            } catch (failure: Exception) {
+                items.remove(item)
+                throw failure
+            }
+            item
+        } catch (failure: Exception) {
+            if (target.exists() && !target.delete()) {
+                failure.addSuppressed(IOException("Could not remove incomplete shared file"))
+            }
+            throw failure
+        }
     }
 
-    fun addFileBytes(name: String, bytes: ByteArray, mimeType: String?): SharedItem =
-        addFile(name, File.createTempFile("upload-", ".tmp", context.cacheDir).apply {
+    fun addFileBytes(name: String, bytes: ByteArray, mimeType: String?): SharedItem {
+        val temp = File.createTempFile("upload-", ".tmp", context.cacheDir).apply {
             writeBytes(bytes)
-        }, mimeType)
+        }
+        return try {
+            addFile(name, temp, mimeType)
+        } finally {
+            temp.delete()
+        }
+    }
 
     fun delete(id: String): Boolean = synchronized(lock) {
         val items = load()
