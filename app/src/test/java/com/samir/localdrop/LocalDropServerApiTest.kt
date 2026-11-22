@@ -2,6 +2,7 @@ package com.samir.localdrop
 
 import android.content.Context
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import com.samir.localdrop.data.SharedRepository
 import com.samir.localdrop.model.SharedItem
 import com.samir.localdrop.server.LocalDropServer
@@ -83,6 +84,27 @@ class LocalDropServerApiTest {
         assertEquals(200, request("GET", "/api/items", token).status)
         server.invalidateSessions()
         assertEquals(401, request("GET", "/api/items", token).status)
+    }
+
+    @Test
+    fun shared_item_gson_names_remain_stable_for_minified_builds() {
+        val apiNames = listOf("id", "type", "name", "text", "relativePath", "mimeType", "size", "createdAt")
+        val annotations = apiNames.associateWith { name ->
+            SharedItem::class.java.getDeclaredField(name).getAnnotation(SerializedName::class.java)?.value
+        }
+
+        assertEquals(apiNames.associateWith { it }, annotations)
+
+        val item = SharedItem(
+            id = "item-id",
+            type = "text",
+            name = "Text",
+            text = "Release-safe JSON",
+            createdAt = 123L
+        )
+        val jsonFields = gson.fromJson(gson.toJson(item), Map::class.java)
+        assertEquals(setOf("id", "type", "name", "text", "size", "createdAt"), jsonFields.keys)
+        assertEquals("text", jsonFields["type"])
     }
 
     @Test

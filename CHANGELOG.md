@@ -8,11 +8,11 @@ Initial feature set:
 - A generated six-digit access code authenticates browser clients; authenticated sessions use expiring tokens.
 - Android and browser clients can share text and files, copy or delete individual items, and clear all shared items.
 - Browser uploads support multiple files and display transfer progress; received files can be downloaded.
-- Fixed text items being presented as files and hardened file sharing against missing or empty data while preserving filename, MIME type, and size.
+- Fixed text items being presented as files; stabilized Gson field names for R8-minified releases and hardened file sharing against missing or empty data while preserving filename, MIME type, and size.
 - Android provides file selection, access-code visibility and copy controls, server status, and light, dark, and system themes.
 - Shared item metadata and files persist in the app's private storage, and connected clients refresh the list automatically.
 - Responsive browser interface supports desktop and mobile layouts.
 
 The project uses plain HTTP and is intended only for trusted local networks; see [SECURITY.md](./SECURITY.md).
 
-The text and file sharing fixes were manually verified on Android and desktop browser. A signed release artifact has not been generated or published.
+Text and file sharing fixes were manually verified with Debug and Signed Release APKs on Android and in a desktop browser.
